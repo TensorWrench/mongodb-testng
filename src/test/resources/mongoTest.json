@@ -1,0 +1,28 @@
+{ 
+"documents": [
+	{
+		"_id" : "sample-1",
+	},
+	{
+		"_id" : "sample-2",
+	}
+],
+"others": [
+	{
+		"_id" : "sample-other-1",
+	},
+	{
+		"_id" : "sample-other-2",
+	},
+	{
+		"_id" : "sample-other-3",
+	},
+	{
+		"_id" : "sample-other-4",
+	},
+	{
+		"_id" : "sample-other-5",
+	}
+],
+
+}
