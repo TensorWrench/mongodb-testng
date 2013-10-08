@@ -16,25 +16,28 @@ limitations under the License.
 apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'pmd'
-apply plugin: 'gitrelease'
 apply from:"file:src/gradle/emma.gradle"
 apply from:"file:src/gradle/backgroundTask.gradle"
 apply plugin: 'maven'
+apply plugin: 'signing'
 
 //===============================================
 // Project settings
 //===============================================
-version = '1.0-SNAPSHOT'
-group 'com.tensorwrench.testng'
-sourceCompatibility = 1.7
-
 ext {
-  mongoDir=new File("$buildDir/mongo-data");
-	testngVersion=6.8
-	mongoDriverVersion="2.11.+"
+	mongoDir=new File("$buildDir/mongo-data");
+	testngVersion='6.8'
+	mongoDriverVersion='2.11.+'
+
 }
 
+version = '1.0' + (hasProperty("isRelease")?"":"-SNAPSHOT")
+group = 'com.tensorwrench.mongodb'
+sourceCompatibility = 1.7
 
+if(!hasProperty("repoUrl")) {
+	ext.repoUrl="${buildDir}/mvnRepo"
+}
 //===============================================
 // Build Tools
 //===============================================
@@ -42,9 +45,6 @@ buildscript {
 	repositories { 
 		mavenCentral() 
 	}  
-	dependencies {
-    classpath 'no.entitas.gradle:gradle-release-plugin:1.16'
-  }
 }
 
 //===============================================
@@ -64,17 +64,6 @@ dependencies {
 	emma "emma:emma:2.0.5312", "emma:emma_ant:2.0.5312"
 }
 
-release {
-	failOnSnapshotDependencies = true
-	versionStrategy = { currentVersion ->
-			if (System.properties['release.version']) {
-					System.properties['release.version']
-			} else {
-					new BigDecimal(currentVersion).add(BigDecimal.ONE).toPlainString()
-			}
-	}
-	startVersion = { currentBranch -> "1" }
-}
 //===============================================
 // Project Overhead
 //===============================================
@@ -130,39 +119,55 @@ artifacts {
 	archives(javadocJar)
 }
 
-uploadArchives {
-    repositories {
-       mavenDeployer {
-           repository(url: new File("${buildDir}/mvnRepo").toURI())
-					 pom.groupId = project.group
-					 pom.project {
-						 packaging "jar"
-						 name "MongoDB TestNG"
-						 description "TestNG support for populating a MongoDB databse before a test is run"
-						 url "https://github.com/TensorWrench/mongodb-testng"
-						 scm {
-						 	 connection "scm:git:https://github.com/TensorWrench/mongodb-testng"
-							 url "https://github.com/TensorWrench/mongodb-testng"
-						 }
-						 developers {
-							 developer {
-								 id "jason"
-								 name "Jason Wagner"
-								 organization "TensorWrench, LLC"
-							 }
-						 }
-						 licenses {
-								 license {
-										 name 'The Apache Software License, Version 2.0'
-										 url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-										 distribution 'repo'
-								 }
-						 }
-				 }
-			 }
-    }
+signing { sign configurations.archives }
+
+def customizePom(pom) {
+	pom.project {
+		packaging "jar"
+		name "MongoDB TestNG"
+		description "TestNG support for populating a MongoDB databse before a test is run"
+		url "https://github.com/TensorWrench/mongodb-testng"
+		scm {
+			connection "scm:git:https://github.com/TensorWrench/mongodb-testng"
+			url "https://github.com/TensorWrench/mongodb-testng"
+		}
+		developers {
+			developer {
+				id "jason"
+				name "Jason Wagner"
+			}
+		}
+		licenses {
+				license {
+						name 'The Apache Software License, Version 2.0'
+						url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+						distribution 'repo'
+				}
+		}
+	}
 }
 
+install {
+	repositories.mavenInstaller {
+		pom.groupId = project.group
+    customizePom(pom)
+	}
+}
+
+uploadArchives {
+	repositories {
+		mavenDeployer {
+			beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+			repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+				authentication(userName: sonatypeUsername, password: sonatypePassword)
+			}
+
+			pom.groupId = project.group
+			customizePom(pom)
+		}
+	}
+}
 //==========================================================================
 // Setup mongodb
 
